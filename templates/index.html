@@ -3,50 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Device Status Detection</title>
+    <title>Live Camera Feed</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            text-align: center;
-            background-color: #f4f4f9;
-            color: #333;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            height: 100vh;
         }
-        h1 {
-            color: #4CAF50;
-        }
-        .status {
-            margin-top: 20px;
-            font-size: 20px;
-            font-weight: bold;
-            color: #333;
-        }
-        .status span {
-            color: #FF5722;
-        }
-        .video-container {
-            margin-top: 20px;
-            max-width: 640px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        img {
+
+        .layout-container {
+            display: flex;
+            justify-content: flex-start;
             width: 100%;
-            border: 2px solid black;
+            max-width: 1200px;
+            margin-top: 20px;
+            flex-grow: 1;
+        }
+
+        .video-container {
+            position: absolute;
+            top: 10;
+            left: 20px;
+            width: 50%;
+            height: 80vh;
+        }
+
+        .video-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border: 1px solid #ccc;
+        }
+
+        .instructions {
+            position: absolute;
+            top: 60px;
+            right: 10px;
+            width: 45%;
+            background-color: #fffbcc;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .results {
+            position: absolute;
+            top: 200px;
+            right: 10px;
+            width: 45%;
+            background-color: #d9fdd9;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-top: 0;
+            margin-left: 10px;
+            text-align: left;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        .missed-step {
+            color: red;
+        }
+
+        .completed-step {
+            color: green;
         }
     </style>
 </head>
 <body>
-    <h1>Device Status Detection</h1>
-    <div class="video-container">
-        <img src="/video_feed" alt="Device Feed" />
-    </div>
-    <div class="status">
-        <p id="status-text">Waiting for Prediction...</p>
-        <p id="prediction-percentage"></p>
+    <h1>Live Camera Feed</h1>
+
+    <div class="layout-container">
+        <div class="video-container">
+            <img src="{{ url_for('video_feed') }}" alt="Live Feed" />
+        </div>
+
+        <div class="instructions" id="instructions">
+            <h2>Instructions</h2>
+            <p>Loading...</p>
+        </div>
+
+        <div class="results" id="results">
+            <h2>Results</h2>
+            <h3>Completed Steps</h3>
+            <ul id="completed-steps"></ul>
+
+            <h3>Missed Steps</h3>
+            <ul id="missed-steps"></ul>
+        </div>
     </div>
 
     <script>
-        // Optional: you could add functionality to dynamically update the status text here.
+        // Function to update instructions
+        function updateInstructions() {
+            fetch('/get_instructions')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('instructions').innerHTML = '<h2>Instructions</h2><p>' + data.instruction + '</p>';
+                });
+        }
+
+        // Function to update results (completed and missed steps)
+        function updateResults() {
+            fetch('/get_results')
+                .then(response => response.json())
+                .then(data => {
+                    const completedList = document.getElementById('completed-steps');
+                    completedList.innerHTML = '';
+                    data.completed_steps.forEach(step => {
+                        const li = document.createElement('li');
+                        li.textContent = step;
+                        li.classList.add('completed-step');
+                        completedList.appendChild(li);
+                    });
+
+                    const missedList = document.getElementById('missed-steps');
+                    missedList.innerHTML = '';
+                    data.missed_steps.forEach(step => {
+                        const li = document.createElement('li');
+                        li.textContent = step;
+                        li.classList.add('missed-step');
+                        missedList.appendChild(li);
+                    });
+                });
+        }
+
+        // Update instructions and results every second
+        setInterval(updateInstructions, 1000);
+        setInterval(updateResults, 1000);
     </script>
 </body>
 </html>
