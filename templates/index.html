@@ -3,50 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Device Status Detection</title>
+    <title>Video Feed with Instructions</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            text-align: center;
+            margin: 0;
+            padding: 0;
             background-color: #f4f4f9;
-            color: #333;
         }
-        h1 {
-            color: #4CAF50;
-        }
-        .status {
-            margin-top: 20px;
-            font-size: 20px;
-            font-weight: bold;
-            color: #333;
-        }
-        .status span {
-            color: #FF5722;
+        .container {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            padding: 20px;
+            gap: 20px;
         }
         .video-container {
-            margin-top: 20px;
-            max-width: 640px;
-            margin-left: auto;
-            margin-right: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #ffffff;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
         }
-        img {
+        .video-container img {
             width: 100%;
-            border: 2px solid black;
+            max-width: 100%;
+            height: auto;  /* Maintain aspect ratio */
+            border-radius: 10px;
+            border: 2px solid #ddd;
+        }
+        .result {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 18px;
+            background-color: #e8f5e9;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #4caf50;
+            color: #4caf50;
+            width: 100%;
+            max-width: 600px;
+        }
+        .instruction-container {
+            flex: 1;
+            background-color: #ffffff;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .instruction-container h2 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .instruction-container ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        .instruction-container ul li {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .instruction-container ul li:nth-child(odd) {
+            background-color: #f1f1f1;
         }
     </style>
 </head>
 <body>
-    <h1>Device Status Detection</h1>
-    <div class="video-container">
-        <img src="/video_feed" alt="Device Feed" />
-    </div>
-    <div class="status">
-        <p id="status-text">Waiting for Prediction...</p>
-        <p id="prediction-percentage"></p>
+    <div class="container">
+        <!-- Video Feed Section -->
+        <div class="video-container">
+            <img src="/video_feed" alt="Device Feed">
+            <div class="result">
+                <h3>Current Prediction</h3>
+                <p id="result-text">Waiting for Prediction...</p>
+            </div>
+        </div>
+
+        <!-- Instructions Section -->
+        <div class="instruction-container">
+            <h2>Instructions</h2>
+            <ul>
+                {% for instruction in instructions %}
+                <li>{{ instruction }}</li>
+                {% endfor %}
+            </ul>
+        </div>
     </div>
 
     <script>
-        // Optional: you could add functionality to dynamically update the status text here.
+        // Function to fetch and update the current prediction
+        function fetchPrediction() {
+            fetch('/current_prediction')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('result-text').textContent = data.class;
+                });
+        }
+
+        // Periodically update the prediction every second
+        setInterval(fetchPrediction, 1000);
     </script>
 </body>
 </html>
