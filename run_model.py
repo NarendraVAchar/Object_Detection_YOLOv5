@@ -8,9 +8,10 @@ import threading
 
 # Initialize Flask app
 app = Flask(__name__)
+model_path = "exp3/weights/best.pt"
 
 # Load the YOLO model (ensure this path matches your `best.pt` location)
-weights_path = Path('annot_data/weights/best.pt').resolve()
+weights_path = Path(model_path).resolve()
 model = torch.hub.load('ultralytics/yolov5', 'custom', path=str(weights_path), force_reload=True)
 
 # Class labels
