@@ -5,6 +5,8 @@ import torch
 from flask import Flask, render_template, Response, jsonify
 from pathlib import Path
 import threading
+import pandas as pd  # Ensure pandas is imported
+import openpyxl  # Ensure openpyxl is installed to read Excel files
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -13,6 +15,21 @@ model_path = "exp3/weights/best.pt"
 # Load the YOLO model (ensure this path matches your `best.pt` location)
 weights_path = Path(model_path).resolve()
 model = torch.hub.load('ultralytics/yolov5', 'custom', path=str(weights_path), force_reload=True)
+
+# Load instructions from the Excel file
+instructions_df = pd.read_excel('instructions.xlsx')
+
+# Create a dictionary to hold the instructions in the correct format
+instructions = {
+    row['Instruction Number']: row['Instruction'] 
+    for _, row in instructions_df.iterrows()
+}
+
+# Also, load associated images (from the 'inst_img' folder with '.png' extension)
+instruction_images = {
+    row['Instruction Number']: f'inst_img/{row["Instruction Number"]}.png'  # Assuming images are in the 'inst_img' folder
+    for _, row in instructions_df.iterrows()
+}
 
 # Class labels
 class_labels = [
@@ -29,7 +46,8 @@ step_flow = [
 
 # Shared state for instructions and results
 state_data = {
-    "current_instruction": "Connect Battery",
+    "current_instruction": instructions.get(11, "Connect Battery"),
+    "current_image": instruction_images.get(11, ""),
     "completed_steps": [],
     "missed_steps": step_flow.copy()
 }
@@ -54,11 +72,13 @@ def update_state(detected_label):
             # Update current instruction
             if index < len(step_flow) - 1:
                 state_data["current_instruction"] = step_flow[index + 1]
+                state_data["current_image"] = instruction_images.get(step_flow[index + 1], "")
             else:
                 state_data["current_instruction"] = "Process Complete"
+                state_data["current_image"] = ""
 
 # Initialize video capture
-video_capture = cv2.VideoCapture(1)  # Use 0 for default webcam, 1 for external camera
+video_capture = cv2.VideoCapture(0)  # Use 0 for default webcam, 1 for external camera
 
 # Function to generate frames for the video feed
 def generate_frames():
@@ -107,6 +127,12 @@ def get_instructions():
     with state_lock:
         return jsonify({"instruction": state_data["current_instruction"]})
 
+@app.route('/get_all_instructions')
+def get_all_instructions():
+    # Return all instructions from the excel sheet as a list of tuples
+    all_instructions = [{"number": num, "instruction": instr} for num, instr in instructions.items()]
+    return jsonify(all_instructions)
+
 @app.route('/get_results')
 def get_results():
     with state_lock:
@@ -114,6 +140,12 @@ def get_results():
             "completed_steps": state_data["completed_steps"],
             "missed_steps": state_data["missed_steps"]
         })
+
+@app.route('/get_instruction_image')
+def get_instruction_image():
+    with state_lock:
+        # Return the image associated with the current instruction
+        return jsonify({"inst_img": state_data["current_image"]})
 
 if __name__ == '__main__':
     webbrowser.open("http://127.0.0.1:5000/")

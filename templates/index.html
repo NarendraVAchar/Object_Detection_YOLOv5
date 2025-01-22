@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Camera Feed</title>
+    <title>Live Camera Feed and Instructions</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -51,17 +51,6 @@
             box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
         }
 
-        .results {
-            position: absolute;
-            top: 200px;
-            right: 10px;
-            width: 45%;
-            background-color: #d9fdd9;
-            padding: 15px;
-            border-radius: 5px;
-            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
         h1 {
             color: #333;
             margin-top: 0;
@@ -88,7 +77,7 @@
     </style>
 </head>
 <body>
-    <h1>Live Camera Feed</h1>
+    <h1>Live Camera Feed and Instructions</h1>
 
     <div class="layout-container">
         <div class="video-container">
@@ -97,57 +86,33 @@
 
         <div class="instructions" id="instructions">
             <h2>Instructions</h2>
-            <p>Loading...</p>
-        </div>
-
-        <div class="results" id="results">
-            <h2>Results</h2>
-            <h3>Completed Steps</h3>
-            <ul id="completed-steps"></ul>
-
-            <h3>Missed Steps</h3>
-            <ul id="missed-steps"></ul>
+            <ul id="instruction-list">
+                <!-- List of all instructions will be dynamically populated here -->
+            </ul>
         </div>
     </div>
 
     <script>
-        // Function to update instructions
-        function updateInstructions() {
-            fetch('/get_instructions')
+        // Function to update all instructions
+        function updateAllInstructions() {
+            fetch('/get_all_instructions')
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('instructions').innerHTML = '<h2>Instructions</h2><p>' + data.instruction + '</p>';
-                });
-        }
-
-        // Function to update results (completed and missed steps)
-        function updateResults() {
-            fetch('/get_results')
-                .then(response => response.json())
-                .then(data => {
-                    const completedList = document.getElementById('completed-steps');
-                    completedList.innerHTML = '';
-                    data.completed_steps.forEach(step => {
+                    const instructionList = document.getElementById('instruction-list');
+                    instructionList.innerHTML = ''; // Clear the existing list
+                    data.forEach((item, index) => {
                         const li = document.createElement('li');
-                        li.textContent = step;
-                        li.classList.add('completed-step');
-                        completedList.appendChild(li);
-                    });
-
-                    const missedList = document.getElementById('missed-steps');
-                    missedList.innerHTML = '';
-                    data.missed_steps.forEach(step => {
-                        const li = document.createElement('li');
-                        li.textContent = step;
-                        li.classList.add('missed-step');
-                        missedList.appendChild(li);
+                        li.textContent = `${index + 1}. ${item.instruction}`; // Display numbered instructions
+                        instructionList.appendChild(li);
                     });
                 });
         }
 
-        // Update instructions and results every second
-        setInterval(updateInstructions, 1000);
-        setInterval(updateResults, 1000);
+        // Update all instructions every 5 seconds
+        setInterval(updateAllInstructions, 5000);
+
+        // Initialize the page with the first fetch
+        updateAllInstructions();
     </script>
 </body>
 </html>
