@@ -43,8 +43,8 @@
             background-color: #e8f5e9;
             padding: 10px;
             border-radius: 8px;
-            border: 1px solid #4caf50;
-            color: #4caf50;
+            border: 1px solid #ffe44e;
+            color: #000000;
             width: 100%;
             max-width: 600px;
         }
@@ -73,14 +73,14 @@
             border: 1px solid #ddd;
             box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
         }
-        .instruction-container ul li.highlight {
+        .instruction-container ul li.completed {
             background-color: #c8e6c9;
             border-color: #4caf50;
             font-weight: bold;
             box-shadow: 0px 2px 6px rgba(0, 128, 0, 0.2);
         }
         .instruction-container ul li.highlight-detected {
-            background-color: #ffeb3b;
+            background-color: #3bff4a9c;
             border-color: #fbc02d;
             font-weight: bold;
             box-shadow: 0px 2px 6px rgba(255, 193, 7, 0.3);
@@ -103,8 +103,8 @@
         <div class="video-container">
             <img src="/video_feed" alt="Device Feed">
             <div class="result">
-                <h3>Current Prediction</h3>
-                <p id="result-text">Waiting for Prediction...</p>
+                <h3>Current Step</h3>
+                <p id="result-text">Waiting...</p>
             </div>
         </div>
 
@@ -129,29 +129,28 @@
             fetch('/current_prediction')
                 .then(response => response.json())
                 .then(data => {
-                    const { class: detectedClass, instruction, instruction_number } = data;
+                    const { class: detectedClass, current_instruction: instruction, current_instruction_index: instruction_number } = data;
+                    console.log(data);
 
                     // Update prediction text
-                    document.getElementById('result-text').textContent = `${detectedClass}: ${instruction}`;
+                    document.getElementById('result-text').textContent = `${instruction}`;
 
                     // Highlight instructions
                     const instructionList = document.getElementById('instruction-list').children;
                     Array.from(instructionList).forEach(item => {
                         const instructionNumber = parseInt(item.getAttribute('data-number'));
-                        console.log(instructionNumber);
+
+                        // Mark previously highlighted instructions as completed
+                        if (instructionNumber < instruction_number) {
+                            item.classList.add('completed');
+                            item.classList.remove('highlight-detected');
+                        }
 
                         // Highlight the detected class instruction
                         if (instructionNumber === instruction_number) {
                             item.classList.add('highlight-detected');
                         } else {
                             item.classList.remove('highlight-detected');
-                        }
-
-                        // Highlight the next instruction
-                        if (instructionNumber === highlightedInstruction) {
-                            item.classList.add('highlight');
-                        } else {
-                            item.classList.remove('highlight');
                         }
                     });
 

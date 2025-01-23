@@ -10,7 +10,7 @@ from pathlib import Path
 app = Flask(__name__)
 
 # Load the YOLO model
-weights_path = Path('annot_data/weights/best.pt').resolve()
+weights_path = Path('exp3/weights/best.pt').resolve()
 model = torch.hub.load('ultralytics/yolov5', 'custom', path=str(weights_path), force_reload=True)
 
 # Load class labels and their corresponding instruction numbers
@@ -21,7 +21,7 @@ class_labels = class_labels_df['Class'].tolist()
 instruction_map = dict(zip(class_labels_df['Class'], class_labels_df['Instruction Number']))
 
 # Initialize video capture
-video_capture = cv2.VideoCapture(1)
+video_capture = cv2.VideoCapture(0)
 
 # State variables to track progress
 current_instruction_index = 0
@@ -39,6 +39,20 @@ def generate_frames():
         results = model(frame)
         detections = results.pandas().xyxy[0]
         print(detections)
+
+        # Mock the detected state
+        # detected_class ='Screws Installed'
+        # instruction_number = instruction_map.get(detected_class, -1)
+
+        # print("Instruction number: ", instruction_number, ", excel no: ", instructions_df.iloc[current_instruction_index]['Instruction Number'])
+
+        # if instruction_number == instructions_df.iloc[current_instruction_index]['Instruction Number']:
+        #     completed_instructions.add(current_instruction_index)
+        #     current_instruction_index += 1
+
+        #     # Ensure we don't go out of bounds
+        #     if current_instruction_index >= len(instructions_df):
+        #         current_instruction_index = len(instructions_df) - 1
 
         if not detections.empty:
             for _, row in detections.iterrows():
@@ -60,7 +74,7 @@ def generate_frames():
                 detected_class = class_labels[class_id]
                 instruction_number = instruction_map.get(detected_class, -1)
 
-                if instruction_number > 0 and instruction_number == instructions_df.iloc[current_instruction_index]['Instruction Number']:
+                if instruction_number == instructions_df.iloc[current_instruction_index]['Instruction Number']:
                     completed_instructions.add(current_instruction_index)
                     current_instruction_index += 1
 
@@ -68,6 +82,7 @@ def generate_frames():
                     if current_instruction_index >= len(instructions_df):
                         current_instruction_index = len(instructions_df) - 1
 
+        print("Completed Instruction:", completed_instructions)
         # Encode and yield the frame
         ret, buffer = cv2.imencode('.jpg', frame)
         frame = buffer.tobytes()
@@ -97,6 +112,7 @@ def current_prediction_route():
     if 0 <= current_instruction_index < len(instructions_df):
         current_instruction_text = instructions_df.iloc[current_instruction_index]['Instruction']
 
+    print("current_instruction_index", current_instruction_index, ", current_instruction", current_instruction_text, ", completed_instructions", list(completed_instructions))
     return jsonify({
         "current_instruction_index": current_instruction_index,
         "current_instruction": current_instruction_text,
