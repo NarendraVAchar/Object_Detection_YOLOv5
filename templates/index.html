@@ -32,7 +32,7 @@
         .video-container img {
             width: 100%;
             max-width: 100%;
-            height: auto;  /* Maintain aspect ratio */
+            height: auto;
             border-radius: 10px;
             border: 2px solid #ddd;
         }
@@ -73,8 +73,27 @@
             border: 1px solid #ddd;
             box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
         }
-        .instruction-container ul li:nth-child(odd) {
-            background-color: #f1f1f1;
+        .instruction-container ul li.highlight {
+            background-color: #c8e6c9;
+            border-color: #4caf50;
+            font-weight: bold;
+            box-shadow: 0px 2px 6px rgba(0, 128, 0, 0.2);
+        }
+        .instruction-container ul li.highlight-detected {
+            background-color: #ffeb3b;
+            border-color: #fbc02d;
+            font-weight: bold;
+            box-shadow: 0px 2px 6px rgba(255, 193, 7, 0.3);
+        }
+        .image-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .image-container img {
+            max-width: 100%;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
@@ -92,26 +111,68 @@
         <!-- Instructions Section -->
         <div class="instruction-container">
             <h2>Instructions</h2>
-            <ul>
+            <ul id="instruction-list">
                 {% for instruction in instructions %}
-                <li>{{ instruction }}</li>
+                <li data-number="{{ loop.index }}">{{ instruction }}</li>
                 {% endfor %}
             </ul>
+            <div class="image-container">
+                <img id="instruction-image" src="{{ url_for('static', filename='inst_img/11.png') }}" alt="Instruction Image">
+            </div>
         </div>
     </div>
 
     <script>
-        // Function to fetch and update the current prediction
+        let currentInstruction = -1; // Track the current highlighted instruction
+        let highlightedInstruction = {{ highlighted_instruction }};  // Use the Flask variable directly in JavaScript
+    
         function fetchPrediction() {
             fetch('/current_prediction')
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('result-text').textContent = data.class;
+                    const { class: detectedClass, instruction, instruction_number } = data;
+    
+                    // Log the instruction_number to check if it's being passed correctly
+                    console.log("Detected Instruction Number:", instruction_number);
+    
+                    // Update prediction text
+                    document.getElementById('result-text').textContent = `${detectedClass}: ${instruction}`;
+    
+                    // Highlight the next instruction to follow (iterating top to bottom)
+                    const instructionList = document.getElementById('instruction-list').children;
+                    Array.from(instructionList).forEach((item, index) => {
+                        const instructionNumber = parseInt(item.getAttribute('data-number'));
+    
+                        // Highlight the instruction that needs to be followed next
+                        if (instructionNumber === highlightedInstruction) {
+                            item.classList.add('highlight'); // Highlight the current instruction to follow
+                        } else {
+                            item.classList.remove('highlight');
+                        }
+    
+                        // Highlight the detected class instruction
+                        if (instructionNumber === instruction_number) {
+                            item.classList.add('highlight-detected'); // Highlight the detected instruction
+                        } else {
+                            item.classList.remove('highlight-detected');
+                        }
+                    });
+    
+                    // Move to the next instruction
+                    if (highlightedInstruction < instruction_number) {
+                        highlightedInstruction = instruction_number; // Update the highlighted instruction to follow
+                    }
+    
+                    // Update the image path dynamically using Flask's static folder
+                    const imagePath = `/static/inst_img/${highlightedInstruction}.png`;
+                    console.log("Setting image path:", imagePath);
+                    document.getElementById('instruction-image').src = imagePath;
                 });
         }
-
-        // Periodically update the prediction every second
+    
+        // Fetch prediction every second
         setInterval(fetchPrediction, 1000);
     </script>
+    
 </body>
 </html>

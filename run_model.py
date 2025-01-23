@@ -13,28 +13,18 @@ app = Flask(__name__)
 weights_path = Path('annot_data/weights/best.pt').resolve()
 model = torch.hub.load('ultralytics/yolov5', 'custom', path=str(weights_path), force_reload=True)
 
-# Class labels
-class_labels = [
-    'Manifold Installed', 'Empty Panel', 'Battery Installed', 'Battery Not Installed',
-    'Battery Cushion Installed', 'Battery Cover Installed', 'Screws Installed',
-    'Screws Not Installed', 'U Clamp Installed', 'M8 x 35 Screw', 
-    'M_F Spacer Screw', '1by4 x 1by2 Screw', '1by4 x 1 Screw'
-]
+# Load class labels and their corresponding instruction numbers
+class_labels_df = pd.read_excel("class_labels.xlsx")
+instructions_df = pd.read_excel("instructions.xlsx")
+
+class_labels = class_labels_df['Class'].tolist()
+instruction_map = dict(zip(class_labels_df['Class'], class_labels_df['Instruction Number']))
 
 # Initialize video capture
-video_capture = cv2.VideoCapture(0)  # Use 0 for default webcam, 1 for external camera
+video_capture = cv2.VideoCapture(0)
 
-# Load instructions from Excel
-def load_instructions():
-    instructions_df = pd.read_excel("instructions.xlsx", header=0)
-    instruction_texts = instructions_df['Instruction']
-    numbered_instructions = [f"{i + 1}. {instruction}" for i, instruction in enumerate(instruction_texts)]
-    return numbered_instructions
+current_prediction = {"class": "None", "instruction": "None", "instruction_number": -1}
 
-# Global variable to store predictions
-current_prediction = {"class": "Waiting for Prediction..."}
-
-# Generate video frames
 def generate_frames():
     global current_prediction
     while True:
@@ -46,46 +36,62 @@ def generate_frames():
         results = model(frame)
         detections = results.pandas().xyxy[0]
 
+        # detected_class = "Battery Installed"
+        # # Map detected class to instruction number
+        # instruction_number = instruction_map.get(detected_class, -1)
+
+        # # Fetch the instruction text
+        # instruction_text = "None"
+        # if instruction_number > 0:
+        #     instruction_text = instructions_df.iloc[instruction_number - 1]['Instruction']
+
+        # # Update the current prediction
+        # current_prediction = {
+        #     "class": detected_class,
+        #     "instruction": instruction_text,
+        #     "instruction_number": instruction_number
+        # }
+
         if not detections.empty:
+            # Take the first detected class (you can modify this to handle multiple detections)
             detected_class_id = int(detections.iloc[0]['class'])
-            detected_class = class_labels[detected_class_id] if detected_class_id < len(class_labels) else "Unknown Class"
-            current_prediction["class"] = detected_class
-        else:
-            current_prediction["class"] = "No Detection"
+            detected_class = class_labels[detected_class_id]
 
-        # Annotate frame
-        for _, row in detections.iterrows():
-            x1, y1, x2, y2, confidence, class_id = int(row['xmin']), int(row['ymin']), int(row['xmax']), int(row['ymax']), row['confidence'], int(row['class'])
-            label = f"{class_labels[class_id]} ({confidence * 100:.2f}%)" if class_id < len(class_labels) else "Unknown Class"
-            color = (0, 255, 0)  # Green
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            # Map detected class to instruction number
+            instruction_number = instruction_map.get(detected_class, -1)
 
-        # Encode frame for streaming
+            # Fetch the instruction text
+            instruction_text = "None"
+            if instruction_number > 0:
+                instruction_text = instructions_df.iloc[instruction_number - 1]['Instruction']
+
+            # Update the current prediction
+            current_prediction = {
+                "class": detected_class,
+                "instruction": instruction_text,
+                "instruction_number": instruction_number
+            }
+
+        # Encode and yield the frame
         ret, buffer = cv2.imencode('.jpg', frame)
         frame = buffer.tobytes()
-
-        # Yield the frame for HTTP streaming
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
-# Route for homepage
 @app.route('/')
 def index():
-    instructions = load_instructions()
-    return render_template('index.html', instructions=instructions)
+    instructions = instructions_df['Instruction'].tolist()
+    highlighted_instruction = current_prediction["instruction_number"]  # Use the highlighted instruction from the prediction
+    return render_template('index.html', instructions=instructions, highlighted_instruction=highlighted_instruction)
 
-# Route for video feed
 @app.route('/video_feed')
 def video_feed():
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-# Route to fetch current prediction
 @app.route('/current_prediction')
 def current_prediction_route():
     return jsonify(current_prediction)
 
-# Run Flask app
 if __name__ == '__main__':
-    webbrowser.open("http://127.0.0.1:5000/")  # Open web browser automatically
+    webbrowser.open("http://127.0.0.1:5000/")
     app.run(debug=False, host='0.0.0.0', port=5000)
