@@ -123,56 +123,51 @@
     </div>
 
     <script>
-        let currentInstruction = -1; // Track the current highlighted instruction
-        let highlightedInstruction = {{ highlighted_instruction }};  // Use the Flask variable directly in JavaScript
-    
+        let highlightedInstruction = {{ highlighted_instruction }}; // Use the Flask variable directly in JavaScript
+
         function fetchPrediction() {
             fetch('/current_prediction')
                 .then(response => response.json())
                 .then(data => {
                     const { class: detectedClass, instruction, instruction_number } = data;
-    
-                    // Log the instruction_number to check if it's being passed correctly
-                    console.log("Detected Instruction Number:", instruction_number);
-    
+
                     // Update prediction text
                     document.getElementById('result-text').textContent = `${detectedClass}: ${instruction}`;
-    
-                    // Highlight the next instruction to follow (iterating top to bottom)
+
+                    // Highlight instructions
                     const instructionList = document.getElementById('instruction-list').children;
-                    Array.from(instructionList).forEach((item, index) => {
+                    Array.from(instructionList).forEach(item => {
                         const instructionNumber = parseInt(item.getAttribute('data-number'));
-    
-                        // Highlight the instruction that needs to be followed next
-                        if (instructionNumber === highlightedInstruction) {
-                            item.classList.add('highlight'); // Highlight the current instruction to follow
-                        } else {
-                            item.classList.remove('highlight');
-                        }
-    
+                        console.log(instructionNumber);
+
                         // Highlight the detected class instruction
                         if (instructionNumber === instruction_number) {
-                            item.classList.add('highlight-detected'); // Highlight the detected instruction
+                            item.classList.add('highlight-detected');
                         } else {
                             item.classList.remove('highlight-detected');
                         }
+
+                        // Highlight the next instruction
+                        if (instructionNumber === highlightedInstruction) {
+                            item.classList.add('highlight');
+                        } else {
+                            item.classList.remove('highlight');
+                        }
                     });
-    
+
                     // Move to the next instruction
                     if (highlightedInstruction < instruction_number) {
-                        highlightedInstruction = instruction_number; // Update the highlighted instruction to follow
+                        highlightedInstruction = instruction_number;
                     }
-    
-                    // Update the image path dynamically using Flask's static folder
+
+                    // Update the image dynamically
                     const imagePath = `/static/inst_img/${highlightedInstruction}.png`;
-                    console.log("Setting image path:", imagePath);
                     document.getElementById('instruction-image').src = imagePath;
                 });
         }
-    
+
         // Fetch prediction every second
         setInterval(fetchPrediction, 1000);
     </script>
-    
 </body>
 </html>

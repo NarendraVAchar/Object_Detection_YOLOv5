@@ -21,12 +21,15 @@ class_labels = class_labels_df['Class'].tolist()
 instruction_map = dict(zip(class_labels_df['Class'], class_labels_df['Instruction Number']))
 
 # Initialize video capture
-video_capture = cv2.VideoCapture(0)
+video_capture = cv2.VideoCapture(1)
 
-current_prediction = {"class": "None", "instruction": "None", "instruction_number": -1}
+# State variables to track progress
+current_instruction_index = 0
+completed_instructions = set()
 
 def generate_frames():
-    global current_prediction
+    global current_instruction_index, completed_instructions
+
     while True:
         success, frame = video_capture.read()
         if not success:
@@ -35,42 +38,35 @@ def generate_frames():
         # Perform detection
         results = model(frame)
         detections = results.pandas().xyxy[0]
-
-        # detected_class = "Battery Installed"
-        # # Map detected class to instruction number
-        # instruction_number = instruction_map.get(detected_class, -1)
-
-        # # Fetch the instruction text
-        # instruction_text = "None"
-        # if instruction_number > 0:
-        #     instruction_text = instructions_df.iloc[instruction_number - 1]['Instruction']
-
-        # # Update the current prediction
-        # current_prediction = {
-        #     "class": detected_class,
-        #     "instruction": instruction_text,
-        #     "instruction_number": instruction_number
-        # }
+        print(detections)
 
         if not detections.empty:
-            # Take the first detected class (you can modify this to handle multiple detections)
-            detected_class_id = int(detections.iloc[0]['class'])
-            detected_class = class_labels[detected_class_id]
+            for _, row in detections.iterrows():
+                x1, y1, x2, y2, confidence, class_id = int(row['xmin']), int(row['ymin']), int(row['xmax']), int(row['ymax']), row['confidence'], int(row['class'])
 
-            # Map detected class to instruction number
-            instruction_number = instruction_map.get(detected_class, -1)
+                # Validate class ID
+                if class_id < len(class_labels):
+                    label = f"{class_labels[class_id]} ({confidence * 100:.2f}%)"
+                    color = (0, 255, 0)  # Green color for bounding box
+                else:
+                    label = "Unknown Class"
+                    color = (0, 0, 255)  # Red color for unknown classes
 
-            # Fetch the instruction text
-            instruction_text = "None"
-            if instruction_number > 0:
-                instruction_text = instructions_df.iloc[instruction_number - 1]['Instruction']
+                # Draw bounding box and label
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-            # Update the current prediction
-            current_prediction = {
-                "class": detected_class,
-                "instruction": instruction_text,
-                "instruction_number": instruction_number
-            }
+                # Check if detected class matches the current instruction
+                detected_class = class_labels[class_id]
+                instruction_number = instruction_map.get(detected_class, -1)
+
+                if instruction_number > 0 and instruction_number == instructions_df.iloc[current_instruction_index]['Instruction Number']:
+                    completed_instructions.add(current_instruction_index)
+                    current_instruction_index += 1
+
+                    # Ensure we don't go out of bounds
+                    if current_instruction_index >= len(instructions_df):
+                        current_instruction_index = len(instructions_df) - 1
 
         # Encode and yield the frame
         ret, buffer = cv2.imencode('.jpg', frame)
@@ -78,11 +74,18 @@ def generate_frames():
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
+
 @app.route('/')
 def index():
+    # Prepare instructions with highlight status
     instructions = instructions_df['Instruction'].tolist()
-    highlighted_instruction = current_prediction["instruction_number"]  # Use the highlighted instruction from the prediction
-    return render_template('index.html', instructions=instructions, highlighted_instruction=highlighted_instruction)
+    highlighted_instruction = current_instruction_index + 1  # Highlight the current instruction
+    return render_template(
+        'index.html',
+        instructions=instructions,
+        highlighted_instruction=highlighted_instruction,
+        completed_instructions=completed_instructions
+    )
 
 @app.route('/video_feed')
 def video_feed():
@@ -90,7 +93,15 @@ def video_feed():
 
 @app.route('/current_prediction')
 def current_prediction_route():
-    return jsonify(current_prediction)
+    current_instruction_text = "None"
+    if 0 <= current_instruction_index < len(instructions_df):
+        current_instruction_text = instructions_df.iloc[current_instruction_index]['Instruction']
+
+    return jsonify({
+        "current_instruction_index": current_instruction_index,
+        "current_instruction": current_instruction_text,
+        "completed_instructions": list(completed_instructions),
+    })
 
 if __name__ == '__main__':
     webbrowser.open("http://127.0.0.1:5000/")
