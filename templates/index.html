@@ -147,19 +147,35 @@
             fetch('/current_prediction')
                 .then(response => response.json())
                 .then(data => {
-                    const { current_instruction: instruction, current_instruction_index: instruction_number } = data;
+                    const { current_instruction: instruction, current_instruction_index: instruction_number_temp, completed_instructions: completed_instructions } = data;
+                    instruction_number = instruction_number_temp;
+
+                    completed_inst_len = completed_instructions.length;
+                    console.log(completed_inst_len);
 
                     // Update prediction text
                     document.getElementById('result-text').textContent = instruction;
 
                     // Highlight instructions
                     const instructionList = document.getElementById('instruction-list').children;
+                    const lastInstructionNumber = instructionList.length; // Total number of instructions (1-based indexing)
+
                     Array.from(instructionList).forEach(item => {
                         const instructionNumber = parseInt(item.getAttribute('data-number'));
                         if (instructionNumber < instruction_number) {
                             item.classList.add('completed');
                         }
-                        item.classList.toggle('highlight-detected', instructionNumber === instruction_number);
+                        if (instructionNumber === instruction_number) {
+                            item.classList.add('highlight-detected');
+                        } else {
+                            item.classList.remove('highlight-detected');
+                        }
+
+                        // Check if all instructions are completed
+                        if (completed_inst_len === lastInstructionNumber) {
+                            item.classList.add('highlight-detected');
+                            document.getElementById('result-text').textContent = "All steps completed!";
+                        }
                     });
 
                     // Update the image dynamically
@@ -167,8 +183,10 @@
                     document.getElementById('instruction-image').src = imagePath;
 
                     highlightedInstruction = instruction_number;
-                });
+                })
+                .catch(error => console.error("Error fetching prediction:", error));
         }
+
 
         // Event listener for "Mark as Done" button
         document.getElementById('mark-done-btn').addEventListener('click', () => {
@@ -178,11 +196,16 @@
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ instruction_number: highlightedInstruction }),
-            }).then(() => fetchPrediction());
+            })
+            .then(() => fetchPrediction())
+            .catch(error => console.error("Error marking as done:", error));
         });
 
         // Fetch prediction every second
         setInterval(fetchPrediction, 1000);
+
+
     </script>
+    
 </body>
 </html>

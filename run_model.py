@@ -19,7 +19,7 @@ instructions_df = pd.read_excel("instructions.xlsx")
 
 class_labels = class_labels_df['Class'].tolist()
 instruction_map = dict(zip(class_labels_df['Class'], class_labels_df['Instruction Number']))
-
+    
 # Initialize video capture
 video_capture = cv2.VideoCapture(0)
 
@@ -38,18 +38,6 @@ def generate_frames():
         # Perform detection
         results = model(frame)
         detections = results.pandas().xyxy[0]
-
-        # Check if detected class matches the current instruction
-        detected_class = 'U Clamp Installed'
-        instruction_number = instruction_map.get(detected_class, -1)
-
-        if instruction_number == instructions_df.iloc[current_instruction_index]['Instruction Number']:
-            completed_instructions.add(current_instruction_index)
-            current_instruction_index += 1
-
-            # Ensure we don't go out of bounds
-            if current_instruction_index >= len(instructions_df):
-                current_instruction_index = len(instructions_df) - 1
 
         if not detections.empty:
             for _, row in detections.iterrows():
