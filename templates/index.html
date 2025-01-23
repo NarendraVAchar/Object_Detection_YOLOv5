@@ -113,10 +113,27 @@
         .mark-done-btn:hover {
             background-color: #45a049;
         }
+        .image-container img {
+            width: 50%; /* Set a fixed width */
+            height: 50%; /* Set a fixed height */
+            object-fit: cover; /* Ensures the image fits the defined dimensions while preserving aspect ratio */
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .tick-mark {
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 10px; /* Space between the instruction text and the image */
+            width: 20px; /* Adjust size as needed */
+            height: 20px;
+        }
+
+
     </style>
 </head>
 <body>
-    <button id="mark-done-btn" class="mark-done-btn">Mark as Done</button>
+    <button id="mark-done-btn" class="mark-done-btn">Next Instruction</button>
     <div class="container">
         <!-- Video Feed Section -->
         <div class="video-container">
@@ -132,7 +149,10 @@
             <h2>Instructions</h2>
             <ul id="instruction-list">
                 {% for instruction in instructions %}
-                <li data-number="{{ loop.index }}">{{ instruction }}</li>
+                <li data-number="{{ loop.index }}">
+                    {{ instruction }}
+                    <img class="tick-mark" src="/static/icons/check-mark.png" alt="Completed" style="display: none; width: 20px; height: 20px; margin-left: 10px;">
+                </li>
                 {% endfor %}
             </ul>
             <div class="image-container">
@@ -143,6 +163,8 @@
 
     <script>
         let highlightedInstruction = {{ highlighted_instruction }};
+        let inturruption = false;
+
         function fetchPrediction() {
             fetch('/current_prediction')
                 .then(response => response.json())
@@ -162,21 +184,61 @@
 
                     Array.from(instructionList).forEach(item => {
                         const instructionNumber = parseInt(item.getAttribute('data-number'));
+                        const tickMark = item.querySelector('.tick-mark'); // Get the tick mark image element
+
                         if (instructionNumber < instruction_number) {
                             item.classList.add('completed');
-                        }
+                            if (tickMark) tickMark.style.display = 'inline'; // Show the tick mark image
+                        } 
                         if (instructionNumber === instruction_number) {
                             item.classList.add('highlight-detected');
-                        } else {
+                            if (tickMark) tickMark.style.display = 'inline';
+                        }
+                        else {
                             item.classList.remove('highlight-detected');
+                            // if (tickMark) tickMark.style.display = 'none'; // Hide the tick mark image
                         }
 
                         // Check if all instructions are completed
                         if (completed_inst_len === lastInstructionNumber) {
                             item.classList.add('highlight-detected');
-                            document.getElementById('result-text').textContent = "All steps completed!";
+
+                            if ( inturruption )
+                            {
+                                document.getElementById('result-text').textContent = "Device Assembly Completed with Interruption";
+                            }
+                            else
+                            {
+                                document.getElementById('result-text').textContent = "Device Assembly Completed";
+                            }
                         }
                     });
+
+                    // Array.from(instructionList).forEach(item => {
+                    //     const instructionNumber = parseInt(item.getAttribute('data-number'));
+                    //     if (instructionNumber < instruction_number) {
+                    //         item.classList.add('completed');
+                    //     }
+                    //     if (instructionNumber === instruction_number) {
+                    //         item.classList.add('highlight-detected');
+                    //     } else {
+                    //         item.classList.remove('highlight-detected');
+                    //     }
+
+                    //     // Check if all instructions are completed
+                    //     if (completed_inst_len === lastInstructionNumber) {
+                    //         item.classList.add('highlight-detected');
+                            
+                    //         if ( inturruption )
+                    //         {
+                    //             document.getElementById('result-text').textContent = "Device Assembly Completed with Interruption";
+                    //         }
+                    //         else
+                    //         {
+                    //             document.getElementById('result-text').textContent = "Device Assembly Completed";
+                    //         }
+                    //     }
+                    // });
 
                     // Update the image dynamically
                     const imagePath = `/static/inst_img/${instruction_number}.png`;
@@ -190,13 +252,14 @@
 
         // Event listener for "Mark as Done" button
         document.getElementById('mark-done-btn').addEventListener('click', () => {
+            inturruption = true;
             fetch('/mark_instruction_done', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ instruction_number: highlightedInstruction }),
-            })
+            })  
             .then(() => fetchPrediction())
             .catch(error => console.error("Error marking as done:", error));
         });
