@@ -74,14 +74,14 @@
             box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
         }
         .instruction-container ul li.completed {
-            background-color: #c8e6c9;
+            background-color: #3bff4a9c;
             border-color: #4caf50;
             font-weight: bold;
             box-shadow: 0px 2px 6px rgba(0, 128, 0, 0.2);
         }
         .instruction-container ul li.highlight-detected {
             background-color: #3bff4a9c;
-            border-color: #fbc02d;
+            border-color: #4caf50;
             font-weight: bold;
             box-shadow: 0px 2px 6px rgba(255, 193, 7, 0.3);
         }
@@ -95,9 +95,28 @@
             border-radius: 10px;
             box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
         }
+        .mark-done-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px; /* Changed from left: 20px to right: 20px */
+            z-index: 1000;
+            padding: 10px 15px;
+            font-size: 16px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.3s ease;
+        }
+        .mark-done-btn:hover {
+            background-color: #45a049;
+        }
     </style>
 </head>
 <body>
+    <button id="mark-done-btn" class="mark-done-btn">Mark as Done</button>
     <div class="container">
         <!-- Video Feed Section -->
         <div class="video-container">
@@ -117,53 +136,50 @@
                 {% endfor %}
             </ul>
             <div class="image-container">
-                <img id="instruction-image" src="{{ url_for('static', filename='inst_img/11.png') }}" alt="Instruction Image">
+                <img id="instruction-image" src="{{ url_for('static', filename='inst_img/0.png') }}" alt="Instruction Image">
             </div>
         </div>
     </div>
 
     <script>
-        let highlightedInstruction = {{ highlighted_instruction }}; // Use the Flask variable directly in JavaScript
-
+        let highlightedInstruction = {{ highlighted_instruction }};
         function fetchPrediction() {
             fetch('/current_prediction')
                 .then(response => response.json())
                 .then(data => {
-                    const { class: detectedClass, current_instruction: instruction, current_instruction_index: instruction_number } = data;
-                    console.log(data);
+                    const { current_instruction: instruction, current_instruction_index: instruction_number } = data;
 
                     // Update prediction text
-                    document.getElementById('result-text').textContent = `${instruction}`;
+                    document.getElementById('result-text').textContent = instruction;
 
                     // Highlight instructions
                     const instructionList = document.getElementById('instruction-list').children;
                     Array.from(instructionList).forEach(item => {
                         const instructionNumber = parseInt(item.getAttribute('data-number'));
-
-                        // Mark previously highlighted instructions as completed
                         if (instructionNumber < instruction_number) {
                             item.classList.add('completed');
-                            item.classList.remove('highlight-detected');
                         }
-
-                        // Highlight the detected class instruction
-                        if (instructionNumber === instruction_number) {
-                            item.classList.add('highlight-detected');
-                        } else {
-                            item.classList.remove('highlight-detected');
-                        }
+                        item.classList.toggle('highlight-detected', instructionNumber === instruction_number);
                     });
 
-                    // Move to the next instruction
-                    if (highlightedInstruction < instruction_number) {
-                        highlightedInstruction = instruction_number;
-                    }
-
                     // Update the image dynamically
-                    const imagePath = `/static/inst_img/${highlightedInstruction}.png`;
+                    const imagePath = `/static/inst_img/${instruction_number}.png`;
                     document.getElementById('instruction-image').src = imagePath;
+
+                    highlightedInstruction = instruction_number;
                 });
         }
+
+        // Event listener for "Mark as Done" button
+        document.getElementById('mark-done-btn').addEventListener('click', () => {
+            fetch('/mark_instruction_done', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ instruction_number: highlightedInstruction }),
+            }).then(() => fetchPrediction());
+        });
 
         // Fetch prediction every second
         setInterval(fetchPrediction, 1000);

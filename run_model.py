@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from flask import Flask, render_template, Response, jsonify
+from flask import Flask, render_template, Response, jsonify, request
 import webbrowser
 import cv2
 import torch
@@ -10,7 +10,7 @@ from pathlib import Path
 app = Flask(__name__)
 
 # Load the YOLO model
-weights_path = Path('exp3/weights/best.pt').resolve()
+weights_path = Path('exp10/weights/best.pt').resolve()
 model = torch.hub.load('ultralytics/yolov5', 'custom', path=str(weights_path), force_reload=True)
 
 # Load class labels and their corresponding instruction numbers
@@ -38,21 +38,18 @@ def generate_frames():
         # Perform detection
         results = model(frame)
         detections = results.pandas().xyxy[0]
-        print(detections)
 
-        # Mock the detected state
-        # detected_class ='Screws Installed'
-        # instruction_number = instruction_map.get(detected_class, -1)
+        # Check if detected class matches the current instruction
+        detected_class = 'U Clamp Installed'
+        instruction_number = instruction_map.get(detected_class, -1)
 
-        # print("Instruction number: ", instruction_number, ", excel no: ", instructions_df.iloc[current_instruction_index]['Instruction Number'])
+        if instruction_number == instructions_df.iloc[current_instruction_index]['Instruction Number']:
+            completed_instructions.add(current_instruction_index)
+            current_instruction_index += 1
 
-        # if instruction_number == instructions_df.iloc[current_instruction_index]['Instruction Number']:
-        #     completed_instructions.add(current_instruction_index)
-        #     current_instruction_index += 1
-
-        #     # Ensure we don't go out of bounds
-        #     if current_instruction_index >= len(instructions_df):
-        #         current_instruction_index = len(instructions_df) - 1
+            # Ensure we don't go out of bounds
+            if current_instruction_index >= len(instructions_df):
+                current_instruction_index = len(instructions_df) - 1
 
         if not detections.empty:
             for _, row in detections.iterrows():
@@ -82,7 +79,6 @@ def generate_frames():
                     if current_instruction_index >= len(instructions_df):
                         current_instruction_index = len(instructions_df) - 1
 
-        print("Completed Instruction:", completed_instructions)
         # Encode and yield the frame
         ret, buffer = cv2.imencode('.jpg', frame)
         frame = buffer.tobytes()
@@ -94,7 +90,7 @@ def generate_frames():
 def index():
     # Prepare instructions with highlight status
     instructions = instructions_df['Instruction'].tolist()
-    highlighted_instruction = current_instruction_index + 1  # Highlight the current instruction
+    highlighted_instruction = current_instruction_index  # Highlight the current instruction
     return render_template(
         'index.html',
         instructions=instructions,
@@ -112,12 +108,29 @@ def current_prediction_route():
     if 0 <= current_instruction_index < len(instructions_df):
         current_instruction_text = instructions_df.iloc[current_instruction_index]['Instruction']
 
-    print("current_instruction_index", current_instruction_index, ", current_instruction", current_instruction_text, ", completed_instructions", list(completed_instructions))
     return jsonify({
         "current_instruction_index": current_instruction_index,
         "current_instruction": current_instruction_text,
         "completed_instructions": list(completed_instructions),
     })
+
+@app.route('/mark_instruction_done', methods=['POST'])
+def mark_instruction_done():
+    """
+    Mark the current instruction as done and move to the next instruction.
+    """
+    global current_instruction_index, completed_instructions
+
+    if 0 <= current_instruction_index < len(instructions_df):
+        completed_instructions.add(current_instruction_index)
+        current_instruction_index += 1
+
+        # Ensure we don't exceed the total number of instructions
+        if current_instruction_index >= len(instructions_df):
+            current_instruction_index = len(instructions_df) - 1
+
+    return jsonify({"status": "success", "current_instruction_index": current_instruction_index})
+
 
 if __name__ == '__main__':
     webbrowser.open("http://127.0.0.1:5000/")
