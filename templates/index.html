@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Feed with Instructions</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <title>EOT Assembly Proocess</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -46,7 +47,12 @@
             border: 1px solid #ffe44e;
             color: #000000;
             width: 100%;
-            max-width: 600px;
+            max-width: 80%;
+        }
+        .result p#result-text {
+            font-weight: 600; /* Semi-bold */
+            font-size: 18px; /* Optional: Adjust size for better visibility */
+            color: #333; /* Optional: Adjust color */
         }
         .instruction-container {
             flex: 1;
@@ -72,6 +78,14 @@
             border-radius: 5px;
             border: 1px solid #ddd;
             box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+
+            /* Font Styles */
+            font-family: 'Poppins', sans-serif; /* Change font-family here */
+            font-size: 16px; /* Change font size */
+            font-weight: bold; /* Set font weight (e.g., bold, normal, lighter) */
+            font-style: normal; /* Set font style (e.g., italic, normal) */
+            color: #333; /* Change text color */
+            line-height: 1.5; /* Adjust line height for readability */
         }
         .instruction-container ul li.completed {
             background-color: #3bff4a9c;
@@ -128,6 +142,13 @@
             width: 20px; /* Adjust size as needed */
             height: 20px;
         }
+        .success-mark {
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 10px; /* Space between the instruction text and the image */
+            width: 20px; /* Adjust size as needed */
+            height: 20px;
+        }
 
 
     </style>
@@ -140,7 +161,10 @@
             <img src="/video_feed" alt="Device Feed">
             <div class="result">
                 <h3>Current Step</h3>
-                <p id="result-text">Waiting...</p>
+                <p id="result-text">
+                    Waiting...
+                    <img class="success-mark" src="/static/icons/successful.png" alt="Successful" style="display: none; width: 20px; height: 20px; margin-left: 10px;">
+                </p>
             </div>
         </div>
 
@@ -185,6 +209,7 @@
                     Array.from(instructionList).forEach(item => {
                         const instructionNumber = parseInt(item.getAttribute('data-number'));
                         const tickMark = item.querySelector('.tick-mark'); // Get the tick mark image element
+                        const successMark = item.querySelector('.success-mark'); // Get the tick mark image element
 
                         if (instructionNumber < instruction_number) {
                             item.classList.add('completed');
@@ -202,14 +227,17 @@
                         // Check if all instructions are completed
                         if (completed_inst_len === lastInstructionNumber) {
                             item.classList.add('highlight-detected');
+                            if (tickMark) tickMark.style.display = 'inline';
 
                             if ( inturruption )
                             {
-                                document.getElementById('result-text').textContent = "Device Assembly Completed with Interruption";
+                                document.getElementById('result-text').textContent = "Device Assembly Completed with Manual Instruction";
+                                if (successMark) successMark.style.display = 'inline';
                             }
                             else
                             {
                                 document.getElementById('result-text').textContent = "Device Assembly Completed";
+                                if (successMark) successMark.style.display = 'inline';
                             }
                         }
                     });
