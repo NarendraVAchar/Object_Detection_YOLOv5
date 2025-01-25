@@ -10,7 +10,7 @@ from pathlib import Path
 app = Flask(__name__)
 
 # Load the YOLO model
-weights_path = Path('exp10/weights/best.pt').resolve()
+weights_path = Path('exp7/weights/best.pt').resolve()
 model = torch.hub.load('ultralytics/yolov5', 'custom', path=str(weights_path), force_reload=True)
 
 # Load class labels and their corresponding instruction numbers
@@ -21,7 +21,7 @@ class_labels = class_labels_df['Class'].tolist()
 instruction_map = dict(zip(class_labels_df['Class'], class_labels_df['Instruction Number']))
     
 # Initialize video capture
-video_capture = cv2.VideoCapture(0)
+video_capture = cv2.VideoCapture(1)
 
 # State variables to track progress
 current_instruction_index = 0
